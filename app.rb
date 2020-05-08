@@ -5,12 +5,16 @@ require_relative 'cards'
 require_relative 'dealler'
 require_relative 'user'
 require_relative 'bank'
+require_relative 'hand'
+require_relative 'deck'
 require 'terminal-table'
 class App
   NAME_FORMAT = /^[а-яА-я]*$/.freeze
   def initialize
     @dealler = Dealler.new
+    @dealler_hand = Hand.new
     @game = Game.new
+    @bank = Bank.new
   end
 
   def start
@@ -47,7 +51,7 @@ class App
     name = gets.chomp
     check_name(name)
     @user = User.new(name)
-    @bank = Bank.new
+    @user_hand = Hand.new
   rescue NameError => e
     puts e.message
     retry
@@ -73,12 +77,17 @@ class App
   end
 
   def start_game
+    @deck = Deck.new
     bet = @user.make_a_bet
     @bank.take_money(bet)
-    @dealler.begin_game(Cards.new)
-    user_cards = @dealler.give_cards
-    @user.take_cards(user_cards)
-    @dealler.take_cards
+    dealler_cards = @deck.give_cards
+    user_cards = @deck.give_cards
+    @dealler_hand.take_cards(dealler_cards)
+    @user_hand.take_cards(user_cards)
+    puts "Ваши карты #{@user_hand.cards.map(&:suit_value).flatten.join(' | ')}"
+    puts "Ваши очки: #{@user_hand.points}"
+    puts 'Карты диллера - *** | ***'
+    puts 'Очки Диллера - ***'
     variants
   end
 
@@ -96,7 +105,8 @@ class App
       one_more_card
     when 3
       puts 'Вскрываемся'
-      @game.winner(@user.user_cards, @dealler.dealler_cards)
+      results
+      @game.winner(@user_hand.points, @dealler_hand.points)
     end
     bank_solution
     finish_game
@@ -106,21 +116,27 @@ class App
     retry
   rescue CrashError => e
     puts e.message
-    @game.winner(@user.user_cards, @dealler.dealler_cards)
+    @game.winner(@user_hand.points, @dealler_hand.points)
     bank_solution
     finish_game
   end
 
   def one_more_card
-    user_cards = @dealler.give_card
-    @user.take_cards(user_cards)
-    @dealler.make_solution
-    @game.winner(@user.user_cards, @dealler.dealler_cards)
+    @user_hand.take_card @deck.give_card
+    puts @dealler.make_solution(@dealler_hand, @deck)
+    results
+    @game.winner(@user_hand.points, @dealler_hand.points)
+  end
+
+  def results
+    show_results(@user_hand.cards, @user_hand.points, 'пользователя')
+    show_results(@dealler_hand.cards, @dealler_hand.points, 'диллера')
   end
 
   def skip_a_move
-    @dealler.make_solution
-    @game.winner(@user.user_cards, @dealler.dealler_cards)
+    puts @dealler.make_solution(@dealler_hand, @deck)
+    results
+    @game.winner(@user_hand.points, @dealler_hand.points)
   end
 
   def bank_solution
@@ -140,8 +156,17 @@ class App
   end
 
   def finish_game
-    @user.finish_game
-    @dealler.finish_game
+    @user_hand.finish_game
+    @dealler_hand.finish_game
+  end
+
+  def show_results(cards, points, param)
+    cards = cards.map(&:suit_value).join(' | ')
+    table = Terminal::Table.new do |t|
+      t << ["Карты #{param} | #{cards} |"]
+      t << ["Очки #{param} #{points}"]
+    end
+    puts table
   end
 end
 

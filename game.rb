@@ -1,16 +1,10 @@
 # frozen_string_literal: true
 
-require_relative 'points_calculate'
 require 'pry'
 
 class Game
-  include PointsCalculate
   @@game_statistic = []
-  def winner(user_cards, dealler_cards)
-    user_points = calculate_points(user_cards)
-    dealler_points = calculate_points(dealler_cards)
-    show_results(user_cards, user_points, 'пользователя')
-    show_results(dealler_cards, dealler_points, 'деллера')
+  def winner(user_points, dealler_points)
     if user_points > 21 || dealler_points > 21
       user_points > 21 ? dealler_wins : user_wins
       nil
@@ -28,12 +22,10 @@ class Game
   private
 
   def user_wins
-    puts 'Выиграл Пользователь'
     @@game_statistic << 'W'
   end
 
   def dealler_wins
-    puts 'Выиграл Диллер'
     @@game_statistic << 'L'
   end
 end
